@@ -91,11 +91,12 @@ syn match  mkdRule      /^\s*-\{3,}$/
 syn match  mkdRule      /^\s*\*\{3,5}$/
 syn match  mkdListItem  "^\s*[-*+]\s\+"
 syn match  mkdListItem  "^\s*\d\+\.\s\+"
-syn match  mkdCode      /^\s*\n\(\(\s\{4,}[^ ]\|\t\+[^\t]\).*\n\)\+/
+syn match  mkdCode      /^\s*\n\%(\%(\s\{4,}\|\t\+\)\%(\%([-*+]\|[0-9]\+\.\)\s\+\)\@!\S.*\n\)\+/
 syn match  mkdLineBreak /  \+$/
 syn region mkdCode      start=/\\\@<!`/                   end=/\\\@<!`/
 syn region mkdCode      start=/\s*``[^`]*/          end=/[^`]*``\s*/
-syn region mkdBlockquote start=/^\s*>/              end=/$/                 contains=mkdLineBreak,mkdLineContinue,@Spell
+"syn region mkdBlockquote start=/^\s*>/              end=/$/                 contains=mkdLineBreak,mkdLineContinue,@Spell
+syn match mkdBlockquote /^\%(\s*>\)\+/
 syn region mkdCode      start="<pre[^>]*>"         end="</pre>"
 syn region mkdCode      start="<code[^>]*>"        end="</code>"
 
@@ -116,26 +117,48 @@ syn region mkdHeaderFold
     \ start="^\s*\z(#\+\)"
     \ skip="^\s*\z1#\+"
     \ end="^\(\s*#\)\@="
-    \ fold contains=TOP
+    \ fold transparent contains=TOP
 
 " fold region for references
 syn region mkdReferenceFold
     \ start="^<!--\z(\S*\)-->"
     \ end="^<!--END\z1-->"
-    \ fold contains=TOP
+    \ fold transparent contains=TOP
 
 " fold region for lists
 syn region mkdListFold
     \ start="^\z(\s*\)\*\z(\s*\)"
     \ skip="^\z1 \z2\s*[^#]"
     \ end="^\(.\)\@="
-    \ fold contains=TOP
+    \ fold transparent contains=TOP
+
+" Maths highlighting (TeX)
+" Accepts either multimarkdown bracket notation or $ notation.
+" Allows use of literal dollars if they are escaped (\$). If you
+" want literal dollars without escaping, you'll have to comment out
+" the texinlinemaths line.
+syntax include syntax/tex.vim
+syn region mmddisplaymaths matchgroup=mkdMath start="\\\\\[" end="\\\\\]" contains=@texMathZoneGroup
+syn region texdisplaymaths matchgroup=mkdMath start="\$\$" end="\$\$" skip="\\\$" contains=@texMathZoneGroup
+syn region texdisplaymaths matchgroup=mkdMath start='\\begin{\z(.\{-\}\)}' end='\\end{\z1}' contains=@texMathZoneGroup
+syn region mmdinlinemaths matchgroup=mkdMath start="\\\\(" end="\\\\)" contains=@texMathZoneGroup
+" inline maths with $ ... $
+" start is a $ not preceded by another $        - \(\$\)\@<!\$
+" and not preceded by a \ (concat)              - \(\$\)\@<!\&\(\\\)\@<!\$
+" and not followed by another $                 - \$\(\$\)\@!
+" ending in a $ not preceded by a \             - \((\$\)\@<!\$
+" skipping any \$                               - \\\$
+" see :help \@<! for more
+syn region texinlinemaths matchgroup=mkdMath start="\(\$\)\@<!\&\(\\\)\@<!\$\(\$\)\@!" end="\(\$\)\@<!\$" skip="\\\$" contains=@texMathZoneGroup
+" restriction is that you can't have something like \$$maths$ - there
+" has to be a space after all of the \$ (literal $)
+
+" Also match \eqref{..} as tex commands
+syn match mkdTeXCommand '\\eqref{.\{-\}}'   contains=mkdEqRef
+syn match mkdEqRef	'{\zs.\{-\}\ze}'    contained
 
 
 syn sync fromstart
-setlocal foldmethod=syntax
-
-
 
 "highlighting for Markdown groups
 HtmlHiLink mkdString	    String
@@ -164,26 +187,15 @@ HtmlHiLink mkdLinkAttrib    Function
 
 HtmlHiLink mkdDelimiter     Delimiter
 
-" Maths highlighting (TeX)
-" Accepts either multimarkdown bracket notation or $ notation.
-" Allows use of literal dollars if they are escaped (\$). If you
-" want literal dollars without escaping, you'll have to comment out
-" the texinlinemaths line.
-syntax include syntax/tex.vim
-syn region mmddisplaymaths matchgroup=mkdMath start="\\\\\[" end="\\\\\]" contains=@texMathZoneGroup
-syn region texdisplaymaths matchgroup=mkdMath start="\$\$" end="\$\$" skip="\\\$" contains=@texMathZoneGroup
-syn region mmdinlinemaths matchgroup=mkdMath start="\\\\(" end="\\\\)" contains=@texMathZoneGroup
-" inline maths with $ ... $
-" start is a $ not preceded by another $        - \(\$\)\@<!\$
-" and not preceded by a \ (concat)              - \(\$\)\@<!\&\(\\\)\@<!\$
-" and not followed by another $                 - \$\(\$\)\@!
-" ending in a $ not preceded by a \             - \((\$\)\@<!\$
-" skipping any \$                               - \\\$
-" see :help \@<! for more
-syn region texinlinemaths matchgroup=mkdMath start="\(\$\)\@<!\&\(\\\)\@<!\$\(\$\)\@!" end="\(\$\)\@<!\$" skip="\\\$" contains=@texMathZoneGroup
-" restriction is that you can't have something like \$$maths$ - there
-" has to be a space after all of the \$ (literal $)
-HtmlHiLink mkdMath SpecialComment
+HtmlHiLink mkdMath	    SpecialComment
+HtmlHiLink mmddisplaymaths  mkdMath
+HtmlHiLink texdisplaymaths  mkdMath
+HtmlHiLink texinlinemaths   mkdMath
+HtmlHiLink mmdinlinemaths   mkdMath
+
+HtmlHiLink mkdTeXCommand    Statement
+HtmlHiLink mkdEqRef	    SpecialComment
+
 
 let b:current_syntax = "mmd"
 
